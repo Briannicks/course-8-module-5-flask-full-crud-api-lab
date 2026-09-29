@@ -19,14 +19,19 @@ events = [
 ]
 
 
+def _get(item, field):
+    """Read a field from an Event object or a dict."""
+    return item[field] if isinstance(item, dict) else getattr(item, field)
+
+
 def find_event(event_id):
-    """Return the Event with the given id, or None if it doesn't exist."""
-    return next((e for e in events if e.id == event_id), None)
+    """Return the event with the given id, or None if it doesn't exist."""
+    return next((e for e in events if _get(e, "id") == event_id), None)
 
 
 def get_valid_title():
     """
-    Read and validate the 'title' field from the JSON body.
+    Read and validate 'title' from the JSON body.
     Returns (title, error_response). Exactly one of them is None.
     """
     data = request.get_json(silent=True)
@@ -47,8 +52,7 @@ def create_event():
     if error:
         return error
 
-    # Use max id + 1 so ids are never reused after a deletion
-    new_id = max((e.id for e in events), default=0) + 1
+    new_id = max((_get(e, "id") for e in events), default=0) + 1
     event = Event(new_id, title)
     events.append(event)
 
@@ -65,6 +69,10 @@ def update_event(event_id):
     title, error = get_valid_title()
     if error:
         return error
+
+    if isinstance(event, dict):
+        event["title"] = title
+        return jsonify(event), 200
 
     event.title = title
     return jsonify(event.to_dict()), 200
